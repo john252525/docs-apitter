@@ -43,8 +43,36 @@
     "touchapi_token": "uuid-token-format",
     "touchapi_login": "username",
     "crm_url": "domain.amocrm.ru",
-    "touchapi_main":true,
+    "crm_type": "amocrm",
+    "touchapi_main": true,
 	"touchapi_name": "Имя аккаунта"
 }
 ```
 > Для Amocrm рекомендуется передавать "touchapi_name", так как этот параметр используется для формирования имени источника в Amocrm. Иначе в имя источника будет подставлено имя по умолчанию - если у аккаунта есть 'connected_phone', то [connected_phone] ([source]), если нет, то [login] ([source])
+
+
+## Response
+200 OK
+```json
+{
+	"ok": true,
+	"message": "Vendors has been connected",
+	"data": {
+		"result": {
+            // результаты включения - информация для логов, если нужна
+		},
+		"binds": [
+		//созданные бинды, 0 - не является ошибкой, это значит, что они уже были созданы ранее
+		],
+		"additional": {
+            "amocrm_source_created": {
+                // если интеграция с amocrm, будет отражена информация о добавлении источников
+			},
+            "touchapi_info": {
+                // информация эккаунта из touchapi
+            }
+			// дополнительная информация, например информация о добавлении источника Amocrm
+		},
+	}
+}
+```
