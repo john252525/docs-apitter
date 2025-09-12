@@ -38,7 +38,7 @@ jobs:
           cd $GITHUB_WORKSPACE
           redocly build-docs openapi/binder-integrilla-api/binderapi.yaml --output=$GITHUB_WORKSPACE/docs/api-integrilla/index.html
 
-      - name: Deploy only API docs to GitHub Pages
+      - name: Deploy specific subfolder
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
