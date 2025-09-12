@@ -6,12 +6,18 @@ on:
     paths:
       - 'openapi/binder-integrilla-api/**'
 
+permissions:
+  contents: write
+
 jobs:
   build-and-deploy-docs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -23,11 +29,10 @@ jobs:
 
       - name: Build HTML documentation
         run: |
-          # Создаем структуру docs/api-integrilla
           mkdir -p docs/api-integrilla
           redocly build-docs openapi/binder-integrilla-api/binderapi.yaml --output=docs/api-integrilla/index.html
 
-      - name: Deploy entire docs folder
+      - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
