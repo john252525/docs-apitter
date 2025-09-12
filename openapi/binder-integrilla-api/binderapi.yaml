@@ -3,7 +3,7 @@ info:
   title: Binder API for Integrilla
   version: 0.1.0
   description: |
-    API for managing vendors and binds - CRUD 
+    API for managing vendors and binds - CRUD  
   contact:
     name: Binder Team
 
