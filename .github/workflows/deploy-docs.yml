@@ -23,12 +23,14 @@ jobs:
 
       - name: Build HTML documentation
         run: |
+          # Создаем папку docs/api-integrilla
           mkdir -p docs/api-integrilla
+          # Строим документацию
           redocly build-docs openapi/binder-integrilla-api/binderapi.yaml --output=docs/api-integrilla/index.html
 
-      - name: Disable Jekyll processing
+      - name: Disable Jekyll
         run: |
-          # Создаем файл чтобы отключить Jekyll
+          # СОЗДАЕМ .nojekyll ФАЙЛ ЧТОБЫ ОТКЛЮЧИТЬ AUTOBUILD
           touch docs/.nojekyll
           echo "Jekyll disabled" > docs/.nojekyll
 
