@@ -968,8 +968,9 @@ paths:
     get:
       summary: Get vendors
       description: |
-        Returns a list of vendors. Can be filtered by login or use pagination
+        Returns a list of vendors. Can be filtered by login or use pagination.
         through limit and offset parameters. Either login or both limit/offset must be provided.
+        Critical changes: Receiving all vendors now is unavailable. Recieving all vendors at once can be dangerous causing very heavy responses.
       operationId: getVendors
       tags:
         - Vendors
