@@ -1,0 +1,1685 @@
+openapi: 3.1.0
+info:
+  title: Binder API for Integrilla
+  version: 0.1.0
+  description: |
+    API for managing vendors and binds - CRUD
+  contact:
+    name: Binder Team
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key for authentication
+    RefererAuth:
+      type: apiKey
+      in: header
+      name: Referer
+      description: |
+        *Must contain whitelisted domain for API access. Provide domain before use.*
+        Example: https://trusted-api-client.com/
+
+security:
+  - RefererAuth: []
+  - ApiKeyAuth: []
+
+servers:
+  - url: https://bapi88.apitter.com/api/v1
+    description: Binder production server
+
+tags:
+  - name: CRM
+    description: CRM integration
+  - name: Vendors
+    description: Vendors management
+  - name: Binds
+    description: Binds management
+  - name: Common
+    description: Common methods
+
+
+paths:
+
+  /int/getAmocrmPipelines:
+    post:
+      summary: Get Amocrm pipelines
+      description: |
+        Retrieve pipelines from Amocrm.
+        Requires Amocrm URL. This endpoint provides the list of pipelines that can be used by the user to select which pipeline should be used for creating an AMOCRM source.
+      operationId: getAmocrmPipelines
+      tags:
+        - CRM
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                crm_url:
+                  type: string
+                  description: CRM URL
+                  example: "https://account.amocrm.ru"
+                api_key:
+                  type: string
+                  description: Required only if X-Api-Key header is not set
+                  example: "bearer_token_here"
+              required:
+                - crm_url
+      responses:
+        '200':
+          description: Successfully retrieved pipelines
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      pipelines:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 9038402
+                            name:
+                              type: string
+                              example: "Sales Pipeline"
+                            sort:
+                              type: integer
+                              example: 20
+                            account_id:
+                              type: integer
+                              example: 6355423
+                  message:
+                    type: string
+                    example: "Pipelines received"
+        '400':
+          description: |
+            Bad request - invalid parameters, unsupported CRM type, or failed to identify CRM
+            Possible errors:
+            - Invalid CRM URL format
+            - Unsupported CRM type (only Amocrm and Kommo supported)
+            - Missing required parameters
+            - Pipeline retrieval failed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: false
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                    example: ["CRM type cannot be identified or crm url does not belong to Amocrm", "Invalid CRM URL"]
+                  message:
+                    type: string
+                    example: "Failed to get Amocrm pipelines"
+        '500':
+          description: Internal server error during pipeline retrieval
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: false
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                    example: ["Unexpected exception", "Database connection failed"]
+                  message:
+                    type: string
+                    example: "Failed to get Amocrm pipelines"
+      x-codeSamples:
+        - lang: curl
+          label: cURL Example
+          source: |
+            curl -X POST "https://bapi88.apitter.com/api/v1/int/getAmocrmPipelines" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json" \
+            -H "X-API-Key: secret_key" \
+            -H "Referer: https://somedomain.com/" \
+            -d '{
+              "crm_url": "https://example.Amocrm.ru",
+            }'
+
+  /int/connect:
+    post:
+      summary: Connect CRM with messaging platform
+      description: |
+        Previously available by binder call: POST https://b2288.apitter.com/403*****-****-****-****-3be******712?keykey=adminkey&json
+        Initializes and creates integration between a CRM system and a messaging platform.
+        Automatically identifies CRM type from the provided parameters and creates necessary vendor records and bindings.
+      operationId: connect
+      tags:
+        - CRM
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                touchapi_source:
+                  type: string
+                  description: Messaging platform source (e.g., whatsapp, telegram)
+                  example: "whatsapp"
+                touchapi_token:
+                  type: string
+                  description: Token for the messaging platform vendor
+                  example: "4a57e4c3-9877-487b-9a2f-29bae392556e"
+                touchapi_login:
+                  type: string
+                  description: Login for the messaging platform vendor
+                  example: "testtest"
+                crm_url:
+                  type: string
+                  description: |
+                    CRM domain URL. Supported formats:
+                    - domain.Amocrm.ru  
+                    - domain.Kommo.com
+                    - domain.bitrix24.ru
+                    - domain.bitrix24.com
+                  example: "autotaz.Amocrm.ru"
+                crm_type:
+                  type: string
+                  description: Required when type cannot be derived from url
+                  example: "bitrix24"
+                crm_token:
+                  type: string
+                  description: Authentication token for the CRM system
+                  example: "TESTTOKEN"
+                touchapi_main:
+                  type: boolean
+                  description: |
+                    Special flag for Amocrm integration indicating main instance.
+                    When true, clears touchapi_main flag from other instances.
+                  example: true
+                touchapi_name:
+                  type: string
+                  description: Custom name for the integration (used in Amocrm source naming)
+                  example: "WhatsApp Support"
+                touchapi_phone:
+                  type: string
+                  description: Phone number associated with the integration
+                  example: "+79999999999"
+              required:
+                - touchapi_source
+                - touchapi_token
+                - touchapi_login
+                - crm_url
+      responses:
+        '200':
+          description: Successfully connected vendors
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      result:
+                        type: object
+                        description: Connection result details
+                      binds:
+                        type: array
+                        items:
+                          type: string
+                          format: uuid
+                        description: UUIDs of created bind connections
+                        example: ["123e4567-e89b-12d3-a456-426614174000"]
+                      additional:
+                        type: object
+                        description: Additional integration data
+                  message:
+                    type: string
+                    example: "Vendors has been connected"
+        '400':
+          description: Bad request - invalid or missing parameters
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: false
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                    example: ["Required parameter missing", "CRM type cannot be identified"]
+                  message:
+                    type: string
+                    example: "Failed to connect vendors"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: false
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                    example: ["Unexpected exception", "Database connection failed"]
+                  message:
+                    type: string
+                    example: "Failed to connect vendors"
+      x-codeSamples:
+        - lang: curl
+          label: cURL Example
+          source: |
+            curl -X POST "https://bapi88.apitter.com/api/v1/int/connect" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json" \
+            -H "X-API-Key: secret" \
+            -H "Referer: https://somedomain.com/" \
+            -d '{
+              "touchapi_source": "whatsapp",
+              "touchapi_token": "4a57e4c3-9877-487b-9a2f-29bae392556e",
+              "touchapi_login": "testtest",
+              "crm_url": "company.Amocrm.ru",
+              "crm_token": "TESTTOKEN",
+              "touchapi_main": true,
+              "touchapi_name": "WhatsApp Support",
+              "touchapi_phone": "+79999999999"
+            }'
+
+  /int/getCrmStatus:
+    get:
+      summary: Get CRM integration status
+      description: |
+        Returns the integration status for a specific CRM by its URL.
+        The status indicates the current step of integration process.
+      operationId: getCrmStatus
+      tags:
+        - CRM
+      parameters:
+        - name: crm_url
+          in: query
+          description: |
+            CRM URL to check status for (e.g., domain.Amocrm.ru, domain.Kommo.com, domain.bitrix24.ru)
+            *Required parameter*
+          required: true
+          schema:
+            type: string
+            example: "integrilla.Amocrm.ru"
+      responses:
+        '200':
+          description: Successfully retrieved CRM status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      crm_url:
+                        type: string
+                        example: "integrilla.Amocrm.ru"
+                      step:
+                        type: object
+                        properties:
+                          value:
+                            type: integer
+                            description: Numeric status code
+                            example: 5
+                          description:
+                            type: string
+                            description: Human-readable status description
+                            example: "Integration completed successfully"
+                  message:
+                    type: string
+                    example: "CRM status"
+        '400':
+          description: Bad request - missing parameters or unidentified CRM type
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: false
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                    example: ["CRM URL is required", "CRM type cannot be identified"]
+                  message:
+                    type: string
+                    example: "Failed to get CRM status"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: false
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                    example: ["Unexpected error occurred", "Database connection failed"]
+                  message:
+                    type: string
+                    example: "Failed to get CRM status"
+      x-codeSamples:
+        - lang: curl
+          label: cURL Example
+          source: |
+            curl -X GET "https://bapi88.apitter.com/api/v1/int/getCrmStatus?crm_url=integrilla.Amocrm.ru" \
+            -H "Accept: application/json" \
+            -H "X-API-Key: secret" \
+            -H "Referer: https://somedomain.com/"
+
+  /int/disable:
+    post:
+      summary: Disable integration
+      description: |
+        Disable integration by messenger vendor UUID.
+        Deactivates all binds associated with the specified messenger vrndor, deletes webhook, deletes source (Amocrm).
+      operationId: disable
+      tags:
+        - CRM
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                uuid:
+                  type: string
+                  description: UUID of the channel to disable (exactly 36 characters)
+                  example: "4a57e4c3-9877-487b-9a2f-29bae392556e"
+                  minLength: 36
+                  maxLength: 36
+              required:
+                - uuid
+      responses:
+        '200':
+          description: Successfully disabled integration channel
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    description: Results of disable operation
+                    items:
+                      type: object
+                  message:
+                    type: string
+                    example: "Integration disabled"
+        '400':
+          description: |
+            Bad request - invalid or missing UUID parameter
+            Possible errors:
+            - UUID parameter is required
+            - UUID must be exactly 36 characters
+            - Empty result after disable operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: false
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                    example: ["UUID is required", "UUID must be exactly 36 characters", "Empty result"]
+                  message:
+                    type: string
+                    example: "Failed to disable channel"
+        '500':
+          description: Internal server error during channel disable operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: false
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                    example: ["Unexpected exception occurred", "Database operation failed"]
+                  message:
+                    type: string
+                    example: "Failed to disable channel"
+      x-codeSamples:
+        - lang: curl
+          label: cURL Example
+          source: |
+            curl -X POST "https://bapi88.apitter.com/api/v1/int/disable" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json" \
+            -H "X-API-Key: secret" \
+            -H "Referer: https://somedomain.com/" \
+            -d '{
+              "uuid": "4a57e4c3-9877-487b-9a2f-29bae392556e"
+            }'
+
+  /int/search:
+    get:
+      summary: Search vendors and binds
+      description: |
+        Search for vendors and their bindings by token or login.
+        Returns vendors data with their associated bindings information.
+      operationId: search
+      tags:
+        - Common
+      parameters:
+        - name: token
+          in: query
+          description: |
+            Token or login to search for vendors
+            *Required parameter*
+          required: true
+          schema:
+            type: string
+            example: "4a57e4c3-9877-487b-9a2f-29bae392556e"
+      responses:
+        '200':
+          description: Successfully found vendors and binds data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    description: Search results containing vendors and binds
+                  message:
+                    type: string
+                    example: "Vendor binds data"
+        '400':
+          description: Bad request - missing token parameter or no results found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: false
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                    example: ["Token is required", "Search has not returned any results"]
+                  message:
+                    type: string
+                    example: "Failed to get data"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: false
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                    example: ["Unexpected error occurred", "Database connection failed"]
+                  message:
+                    type: string
+                    example: "Failed to get data"
+      x-codeSamples:
+        - lang: curl
+          label: cURL Example
+          source: |
+            curl -X GET "https://bapi88.apitter.com/api/v1/int/search?token=4a57e4c3-9877-487b-9a2f-29bae392556e" \
+            -H "Accept: application/json" \
+            -H "X-API-Key: secret" \
+            -H "Referer: https://somedomain.com/"
+
+
+
+
+  /int/addVendor:
+    post:
+      summary: Add new vendor
+      description: |
+        Creates a new vendor in the system. Requires vendor type and additional vendor-specific parameters.
+      operationId: addVendor
+      tags:
+        - Vendors
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - type
+              properties:
+                type:
+                  type: string
+                  description: Vendor type identifier
+                  example: "touchapi"
+                login:
+                  type: string
+                  description: Vendor login identifier
+                  example: "login777"
+                source:
+                  type: string
+                  description: Communication source
+                  example: "whatsapp"
+              example:
+                type: "touchapi"
+                login: "login777"
+                source: "whatsapp"
+      responses:
+        '200':
+          description: Vendor successfully added
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    description: Vendor creation results
+                    properties:
+                      ok:
+                        type: boolean
+                        example: true
+                      vendor_id:
+                        type: integer
+                        example: 123
+                      message:
+                        type: string
+                        example: "Vendor created successfully"
+                  message:
+                    type: string
+                    example: "Vendor has been added"
+        '400':
+          description: Bad request - missing or invalid parameters
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: false
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                    example: ["Type is required", "Invalid credentials format"]
+                  message:
+                    type: string
+                    example: "Failed to add vendor"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: false
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                    example: ["Database connection failed", "Vendor service unavailable"]
+                  message:
+                    type: string
+                    example: "Failed to add vendor"
+      x-codeSamples:
+        - lang: curl
+          label: cURL Example
+          source: |
+            curl -X POST "https://bapi88.apitter.com/api/v1/int/addVendor" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json" \
+            -H "X-API-Key: secret" \
+            -H "Referer: https://somedomain.com/" \
+            -d '{
+              "type": "touchapi",
+              "login": "login777",
+              "source": "whatsapp",
+            }'
+
+  /int/getVendor:
+    get:
+      summary: Get vendor by UUID
+      description: |
+        Returns detailed information about a specific vendor by its UUID.
+        Includes vendor data and associated metadata.
+      operationId: getVendor
+      tags:
+        - Vendors
+      parameters:
+        - name: uuid
+          in: query
+          description: |
+            Vendor UUID to retrieve
+            *Required parameter*
+          required: true
+          schema:
+            type: string
+            format: uuid
+            example: "550e8400-e29b-41d4-a716-446655440000"
+      responses:
+        '200':
+          description: Successfully retrieved vendor information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    description: Vendor details with associated data
+                    properties:
+                      id:
+                        type: integer
+                        example: 123
+                      uuid:
+                        type: string
+                        example: "550e8400-e29b-41d4-a716-446655440000"
+                      type:
+                        type: string
+                        example: "touchapi"
+                      token:
+                        type: string
+                        example: "4a57e4c3-9877-487b-9a2f-29bae392556e"
+                      login:
+                        type: string
+                        example: "login777"
+                      source:
+                        type: string
+                        example: "whatsapp"
+                      data:
+                        type: object
+                        additionalProperties:
+                          type: string
+                        example:
+                          touchapi_main: "true"
+                          touchapi_name: "WhatsApp 79999999999"
+                  message:
+                    type: string
+                    example: "Vendor received"
+        '400':
+          description: Bad request - missing UUID parameter
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: false
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                    example: ["Uuid is required"]
+                  message:
+                    type: string
+                    example: "Failed to get vendor"
+        '404':
+          description: Vendor not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: false
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                    example: ["Vendor not found in DB"]
+                  message:
+                    type: string
+                    example: "Failed to get vendor"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: false
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                    example: ["Unexpected error occurred", "Database connection failed"]
+                  message:
+                    type: string
+                    example: "Failed to get vendor"
+      x-codeSamples:
+        - lang: curl
+          label: cURL Example
+          source: |
+            curl -X GET "https://bapi88.apitter.com/api/v1/int/getVendor?uuid=550e8400-e29b-41d4-a716-446655440000" \
+            -H "Accept: application/json" \
+            -H "X-API-Key: secret" \
+            -H "Referer: https://somedomain.com/"
+
+  /int/getVendorByLogin:
+    get:
+      summary: Get vendor by login
+      description: |
+        Returns detailed information about a specific vendor by its login.
+        Includes vendor data and connectors information.
+      operationId: getVendorByLogin
+      tags:
+        - Vendors
+      parameters:
+        - name: login
+          in: query
+          description: |
+            Vendor login to retrieve
+            *Required parameter*
+          required: true
+          schema:
+            type: string
+            example: "login777"
+      responses:
+        '200':
+          description: Successfully retrieved vendor information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    description: Vendor details with connectors data
+                    properties:
+                      vendor:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                            example: 123
+                          uuid:
+                            type: string
+                            example: "550e8400-e29b-41d4-a716-446655440000"
+                          type:
+                            type: string
+                            example: "touchapi"
+                          token:
+                            type: string
+                            example: "4a57e4c3-9877-487b-9a2f-29bae392556e"
+                          login:
+                            type: string
+                            example: "login777"
+                          source:
+                            type: string
+                            example: "whatsapp"
+                      connectors:
+                        type: object
+                        description: Vendor connectors data
+                        properties:
+                          id:
+                            type: integer
+                            example: 456
+                          vendor_id:
+                            type: integer
+                            example: 123
+                          name:
+                            type: string
+                            example: "b24_connectors"
+                          value:
+                            type: string
+                            example: "connector_data"
+                  message:
+                    type: string
+                    example: "Vendor received"
+        '400':
+          description: Bad request - missing login parameter
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: false
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                    example: ["Login is required"]
+                  message:
+                    type: string
+                    example: "Failed to get vendor"
+        '404':
+          description: Vendor not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: false
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                    example: ["Vendor not found in DB"]
+                  message:
+                    type: string
+                    example: "Failed to get vendor"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: false
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                    example: ["Unexpected error occurred", "Database connection failed"]
+                  message:
+                    type: string
+                    example: "Failed to get vendor"
+      x-codeSamples:
+        - lang: curl
+          label: cURL Example
+          source: |
+            curl -X GET "https://bapi88.apitter.com/api/v1/int/getVendorByLogin?login=login777" \
+            -H "Accept: application/json" \
+            -H "X-API-Key: secret" \
+            -H "Referer: https://somedomain.com/"
+
+
+
+  /int/getVendors:
+    get:
+      summary: Get vendors
+      description: |
+        Returns a list of vendors. Can be filtered by login or use pagination
+        through limit and offset parameters. Either login or both limit/offset must be provided.
+      operationId: getVendors
+      tags:
+        - Vendors
+      parameters:
+        - name: login
+          in: query
+          description: |
+            Filter by vendor login.
+            *Required when limit and offset are not provided*
+          required: false
+          schema:
+            type: string
+            example: "login777"
+        - name: limit
+          in: query
+          description: |
+            Maximum number of records to return
+            *Required when login is not provided*
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            example: 10
+        - name: offset
+          in: query
+          description: |
+            Number of records to skip for pagination
+            *Required when login is not provided*
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            example: 0
+      responses:
+        '200':
+          description: Successfully retrieved vendors list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          example: 1
+                        type:
+                          type: string
+                          example: "touchapi"
+                        login:
+                          type: string
+                          example: "login777"
+                        source:
+                          type: string
+                          example: "whatsapp"
+                  message:
+                    type: string
+                    example: "Vendors received"
+        '400':
+          description: Bad request - invalid or missing parameters
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: false
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                    example: ["limit and offset are required without login parameter"]
+                  message:
+                    type: string
+                    example: "Failed to get vendors"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: false
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                    example: ["Unexpected error occurred", "Database connection failed"]
+                  message:
+                    type: string
+                    example: "Failed to get vendors"
+      x-codeSamples:
+        - lang: curl
+          label: cURL Example
+          source: |
+            curl -X GET "https://bapi88.apitter.com/api/v1/int/getVendors?limit=10&offset=0" \
+            -H "Accept: application/json" \
+            -H "X-API-Key: secret" \
+            -H "Referer: https://somedomain.com/"
+
+
+  /int/updateVendor:
+    post:
+      summary: Update vendor information
+      description: |
+        Updates vendor details and metadata. Supports updating vendor properties (type, token, login, source, enable)
+        and vendor data (additional metadata fields including special handling for touchapi_main field).
+      operationId: updateVendor
+      tags:
+        - Vendors
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                uuid:
+                  type: string
+                  format: uuid
+                  description: Vendor UUID to update
+                  example: "550e8400-e29b-41d4-a716-446655440000"
+                type:
+                  type: string
+                  description: Vendor type
+                  example: "touchapi"
+                token:
+                  type: string
+                  description: Vendor token
+                  example: "4a57e4c3-9877-487b-9a2f-29bae392556e"
+                login:
+                  type: string
+                  description: Vendor login
+                  example: "login777"
+                source:
+                  type: string
+                  description: Vendor source
+                  example: "whatsapp"
+                enable:
+                  type: boolean
+                  description: Vendor enabled status
+                  example: true
+                data:
+                  type: object
+                  description: Additional vendor metadata
+                  additionalProperties:
+                    type: string
+                  example:
+                    touchapi_main: "true"
+                    touchapi_name: "WhatsApp 79999999999"
+                    touchapi_phone: "+79999999999"
+              required:
+                - uuid
+      responses:
+        '200':
+          description: Vendor successfully updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    description: Updated vendor information
+                  message:
+                    type: string
+                    example: "Vendor updated"
+        '400':
+          description: Bad request - invalid or missing parameters
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: false
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                    example: ["Uuid is required", "Data must be an array"]
+                  message:
+                    type: string
+                    example: "Failed to update vendor"
+        '404':
+          description: Vendor not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: false
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                    example: ["Vendor not found in DB"]
+                  message:
+                    type: string
+                    example: "Failed to update vendor"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: false
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                    example: ["Unexpected error occurred", "Database connection failed"]
+                  message:
+                    type: string
+                    example: "Failed to update vendor"
+      x-codeSamples:
+        - lang: curl
+          label: cURL Example
+          source: |
+            curl -X POST "https://bapi88.apitter.com/api/v1/int/updateVendor" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json" \
+            -H "X-API-Key: secret" \
+            -H "Referer: https://somedomain.com/" \
+            -d '{
+              "uuid": "550e8400-e29b-41d4-a716-446655440000",
+              "enable": false,
+              "data": {
+                "touchapi_main": "true",
+                "touchapi_name": "WhatsApp Support"
+              }
+            }'
+
+
+  /int/deleteVendor:
+    delete:
+      summary: Delete vendor
+      description: |
+        Deletes a vendor by UUID. Also removes all bindings associated with this vendor.
+      operationId: deleteVendor
+      tags:
+        - Vendors
+      parameters:
+        - name: uuid
+          in: query
+          description: Vendor UUID to delete
+          required: true
+          schema:
+            type: string
+            format: uuid
+            example: "550e8400-e29b-41d4-a716-446655440000"
+      responses:
+        '200':
+          description: Vendor successfully deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    description: Result of deletion operation
+                  message:
+                    type: string
+                    example: "Vendors has been deleted"
+        '400':
+          description: Bad request - missing UUID parameter
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: false
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                    example: ["Vendor uuid required"]
+                  message:
+                    type: string
+                    example: "Failed to delete vendor"
+        '404':
+          description: Vendor not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: false
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                    example: ["Vendor not found"]
+                  message:
+                    type: string
+                    example: "Failed to delete vendor"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: false
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                    example: ["Unexpected error", "Database connection failed"]
+                  message:
+                    type: string
+                    example: "Failed to delete vendor"
+      x-codeSamples:
+        - lang: curl
+          label: cURL Example
+          source: |
+            curl -X DELETE "https://bapi88.apitter.com/api/v1/int/deleteVendor?uuid=550e8400-e29b-41d4-a716-446655440000" \
+            -H "Accept: application/json" \
+            -H "X-API-Key: secret" \
+            -H "Referer: https://somedomain.com/"
+
+
+
+
+  /int/addBind:
+    post:
+      summary: Create a bind between vendors
+      description: |
+        Creates a binding connection between two vendors using their UUIDs.
+        If the bind already exists, returns the existing bind UUID.
+      operationId: addBind
+      tags:
+        - Binds
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                vendor_from_uuid:
+                  type: string
+                  format: uuid
+                  description: UUID of the source vendor
+                  example: "550e8400-e29b-41d4-a716-446655440000"
+                vendor_to_uuid:
+                  type: string
+                  format: uuid
+                  description: UUID of the target vendor
+                  example: "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+              required:
+                - vendor_from_uuid
+                - vendor_to_uuid
+      responses:
+        '200':
+          description: Bind successfully created or already exists
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      uuid:
+                        type: string
+                        format: uuid
+                        example: "123e4567-e89b-12d3-a456-426614174000"
+                  message:
+                    type: string
+                    example: "Bind added"
+        '400':
+          description: Bad request - invalid or missing UUID parameters
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: false
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                    example: ["Empty or not valid vendor_from_uuid", "Empty or not valid vendor_to_uuid"]
+                  message:
+                    type: string
+                    example: "Failed to add bind"
+        '404':
+          description: One or both vendors not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: false
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                    example: ["One or two vendors do not exist in DB"]
+                  message:
+                    type: string
+                    example: "Failed to add bind"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: false
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                    example: ["Unexpected error occurred", "Database connection failed"]
+                  message:
+                    type: string
+                    example: "Failed to add bind"
+      x-codeSamples:
+        - lang: curl
+          label: cURL Example
+          source: |
+            curl -X POST "https://bapi88.apitter.com/api/v1/int/addBind" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json" \
+            -H "X-API-Key: secret" \
+            -H "Referer: https://somedomain.com/" \
+            -d '{
+              "vendor_from_uuid": "550e8400-e29b-41d4-a716-446655440000",
+              "vendor_to_uuid": "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+            }'
+
+  /int/updateBind:
+    post:
+      summary: Update bind status
+      description: |
+        Updates the enable/disable status of a bind connection between vendors.
+        Only the 'enable' status can be modified for an existing bind.
+      operationId: updateBind
+      tags:
+        - Binds
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                uuid:
+                  type: string
+                  format: uuid
+                  description: Bind UUID to update
+                  example: "123e4567-e89b-12d3-a456-426614174000"
+                enable:
+                  type: boolean
+                  description: New enable status for the bind
+                  example: false
+              required:
+                - uuid
+                - enable
+      responses:
+        '200':
+          description: Bind successfully updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    description: Updated bind information
+                  message:
+                    type: string
+                    example: "Bind updated"
+        '400':
+          description: Bad request - invalid or missing parameters
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: false
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                    example: ["Empty or not valid bind UUID", "Enable param is required"]
+                  message:
+                    type: string
+                    example: "Failed to update bind"
+        '404':
+          description: Bind not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: false
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                    example: ["Bind does not exist in DB"]
+                  message:
+                    type: string
+                    example: "Failed to update bind"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: false
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                    example: ["Unexpected error occurred", "Database connection failed"]
+                  message:
+                    type: string
+                    example: "Failed to update bind"
+      x-codeSamples:
+        - lang: curl
+          label: cURL Example
+          source: |
+            curl -X POST "https://bapi88.apitter.com/api/v1/int/updateBind" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json" \
+            -H "X-API-Key: secret" \
+            -H "Referer: https://somedomain.com/" \
+            -d '{
+              "uuid": "123e4567-e89b-12d3-a456-426614174000",
+              "enable": false
+            }'
+
+
+  /int/deleteBind:
+    delete:
+      summary: Delete a bind between vendors
+      description: |
+        Deletes a binding connection between vendors.
+        Can be deleted either by specifying both vendor UUIDs or by the bind UUID directly.
+      operationId: deleteBind
+      tags:
+        - Binds
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                vendor_from_uuid:
+                  type: string
+                  format: uuid
+                  description: UUID of the source vendor (required if uuid not provided)
+                  example: "550e8400-e29b-41d4-a716-446655440000"
+                vendor_to_uuid:
+                  type: string
+                  format: uuid
+                  description: UUID of the target vendor (required if uuid not provided)
+                  example: "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+                uuid:
+                  type: string
+                  format: uuid
+                  description: Direct UUID of the bind to delete (alternative to vendor UUIDs)
+                  example: "123e4567-e89b-12d3-a456-426614174000"
+              anyOf:
+                - required: [vendor_from_uuid, vendor_to_uuid]
+                - required: [uuid]
+      responses:
+        '200':
+          description: Bind successfully deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    description: Result of deletion operation
+                  message:
+                    type: string
+                    example: "Bind deleted"
+        '400':
+          description: Bad request - invalid or missing parameters
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: false
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                    example: ["Empty or not valid vendor_from_uuid", "Not valid bind uuid"]
+                  message:
+                    type: string
+                    example: "Failed to delete bind"
+        '404':
+          description: Bind not found or no records affected
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: false
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                    example: ["No records affected"]
+                  message:
+                    type: string
+                    example: "Failed to delete bind"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: false
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                    example: ["Unexpected error occurred", "Database connection failed"]
+                  message:
+                    type: string
+                    example: "Failed to delete bind"
+      x-codeSamples:
+        - lang: curl
+          label: cURL Example (by vendor UUIDs)
+          source: |
+            curl -X DELETE "https://bapi88.apitter.com/api/v1/int/deleteBind" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json" \
+            -H "X-API-Key: secret" \
+            -H "Referer: https://somedomain.com/" \
+            -d '{
+              "vendor_from_uuid": "550e8400-e29b-41d4-a716-446655440000",
+              "vendor_to_uuid": "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+            }'
+        - lang: curl
+          label: cURL Example (by bind UUID)
+          source: |
+            curl -X DELETE "https://bapi88.apitter.com/api/v1/int/deleteBind" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json" \
+            -H "X-API-Key: secret" \
+            -H "Referer: https://somedomain.com/" \
+            -d '{
+              "uuid": "123e4567-e89b-12d3-a456-426614174000"
+            }'
+
+
