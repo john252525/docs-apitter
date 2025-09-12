@@ -317,7 +317,11 @@ paths:
       summary: Get CRM integration status
       description: |
         Returns the integration status for a specific CRM by its URL.
-        The status indicates the current step of integration process.
+        The status indicates the current step of integration process. Works correct only for newly added account.
+        case UNAVAILABLE = 0;
+        case DISABLED = 1;
+        case NOT_INSTALLED = 2;
+        case INSTALLED = 5;
       operationId: getCrmStatus
       tags:
         - CRM
