@@ -6,12 +6,18 @@ on:
     paths:
       - 'openapi/binder-integrilla-api/**'
 
+permissions:
+  contents: write  # 🔥 ДОБАВЬ ЭТО В КОРНЕ!
+
 jobs:
   build-and-deploy-docs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}  # 🔥 ДОБАВЬ ТОКЕН ДЛЯ CHECKOUT!
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -23,20 +29,17 @@ jobs:
 
       - name: Build HTML documentation
         run: |
-          # Создаем папку docs/api-integrilla
           mkdir -p docs/api-integrilla
-          # Строим документацию
           redocly build-docs openapi/binder-integrilla-api/binderapi.yaml --output=docs/api-integrilla/index.html
 
       - name: Disable Jekyll
         run: |
-          # СОЗДАЕМ .nojekyll ФАЙЛ ЧТОБЫ ОТКЛЮЧИТЬ AUTOBUILD
           touch docs/.nojekyll
           echo "Jekyll disabled" > docs/.nojekyll
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}  # 🔥 УБЕДИСЬ ЧТО ТОКЕН ЕСТЬ
           publish_dir: ./docs
           publish_branch: gh_pages
