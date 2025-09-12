@@ -38,8 +38,7 @@ tags:
   - name: Binds
     description: Binds management
   - name: Common
-    description: Common methods
-
+    description: Common methods (vendors and binds)
 
 paths:
 
