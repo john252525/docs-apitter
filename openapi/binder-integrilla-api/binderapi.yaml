@@ -162,8 +162,8 @@ paths:
       summary: Connect CRM with messaging platform
       description: |
         Previously available by binder call: POST https://b2288.apitter.com/403*****-****-****-****-3be******712?keykey=adminkey&json
-        Initializes and creates integration between a CRM system and a messaging platform.
-        Automatically identifies CRM type from the provided parameters and creates necessary vendor records and bindings.
+        Initializes and creates integration between a CRM system and a messager vendor (channel).
+        Automatically identifies CRM type from the provided parameters if possible and creates necessary vendor records and binds, adds webhook and Amocrm source.
       operationId: connect
       tags:
         - CRM
@@ -203,6 +203,10 @@ paths:
                   type: string
                   description: Authentication token for the CRM system
                   example: "TESTTOKEN"
+                crm_data:
+                  type: object
+                  description: Additional papams specific for CRM system
+                  example: { "pipeline_id": 736524 }
                 touchapi_main:
                   type: boolean
                   description: |
