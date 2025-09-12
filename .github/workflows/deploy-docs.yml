@@ -5,6 +5,10 @@ on:
     branches: [ main ]
     paths:
       - 'openapi/binder-integrilla-api/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'openapi/binder-integrilla-api/**'
 
 permissions:
   contents: write
@@ -16,7 +20,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -26,15 +30,16 @@ jobs:
       - name: Install Redocly CLI
         run: npm install -g @redocly/cli
 
-      - name: Build HTML documentation
-        run: |
-          mkdir -p build-output
-          redocly build-docs openapi/binder-integrilla-api/binderapi.yaml --output=build-output/index.html
-          touch build-output/.nojekyll
+      - name: Create API docs directory
+        run: mkdir -p docs/api-integrilla
 
-      - name: Deploy to GitHub Pages
+      - name: Build HTML documentation
+        run: redocly build-docs openapi/binder-integrilla-api/binderapi.yaml --output=docs/api-integrilla/index.html
+
+      - name: Deploy only API docs to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./build-output
-          publish_branch: gh_pages
+          publish_dir: ./docs/api-integrilla
+          destination_dir: api-integrilla
+          publish_branch: gh-pages
