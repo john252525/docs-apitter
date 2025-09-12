@@ -34,7 +34,9 @@ jobs:
         run: mkdir -p docs/api-integrilla
 
       - name: Build HTML documentation
-        run: redocly build-docs openapi/binder-integrilla-api/binderapi.yaml --output=docs/api-integrilla/index.html
+        run: |
+          cd $GITHUB_WORKSPACE
+          redocly build-docs openapi/binder-integrilla-api/binderapi.yaml --output=$GITHUB_WORKSPACE/docs/api-integrilla/index.html
 
       - name: Deploy only API docs to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
