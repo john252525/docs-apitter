@@ -28,10 +28,9 @@ jobs:
 
       - name: Build HTML documentation
         run: |
-          # Создаем папку для билда
           mkdir -p build-output
-          # Строим документацию
           redocly build-docs openapi/binder-integrilla-api/binderapi.yaml --output=build-output/index.html
+          touch build-output/.nojekyll
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
