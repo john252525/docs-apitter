@@ -205,8 +205,8 @@ paths:
                   example: "bitrix24"
                 crm_token:
                   type: string
-                  description: Authentication token for the CRM system
-                  example: "TESTTOKEN"
+                  description: Crm token data
+                  example: {"access_token": "tokenstring", "exp": "172763534233"}
                 crm_data:
                   type: object
                   description: Additional papams specific for CRM system
