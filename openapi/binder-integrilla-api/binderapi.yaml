@@ -209,7 +209,7 @@ paths:
                   example: {"access_token": "tokenstring", "exp": "172763534233"}
                 crm_data:
                   type: object
-                  description: Additional papams specific for CRM system
+                  description: Additional papams specific for CRM system. Amocrm - Pipeline ID optional for accounts with single pipeline.
                   example: { "pipeline_id": 736524 }
                 touchapi_main:
                   type: boolean
